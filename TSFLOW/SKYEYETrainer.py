@@ -11,6 +11,8 @@ from tensorflow import keras
 from tensorflow.keras import regularizers
 import cv2
 
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+
 def convtimg(s64):
 	bt = base64.b64decode(s64)
 	im = Image.open(io.BytesIO(bt))
@@ -127,6 +129,7 @@ def train(ogptype,modelfn,topx,epochs):
 	model.add(tf.keras.layers.Conv2D(64, (3, 3), activation='relu'))
 	model.add(tf.keras.layers.Flatten())
 	model.add(tf.keras.layers.Dense(64, activation='relu'))
+	#model.add(tf.keras.layers.Dropout(0.2));
 	model.add(tf.keras.layers.Dense(10, activation='softmax'))
 	model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['sparse_categorical_accuracy'])
 
@@ -153,16 +156,83 @@ def verify(ogptype,modelfn):
 		fn = 'fnt_'+ str(i)+'_'+str(mxidx)+'.png'
 		dumpimg(imgds[i],fn)
 
+def convertmodeltopb(oldmodelfn,newmodelfn):
+	model = tf.keras.models.load_model(oldmodelfn)
+	#path of the directory where you want to save your model
+	frozen_out_path = './'
+	# name of the .pb file
+	frozen_graph_filename = newmodelfn
+	full_model = tf.function(lambda x: model(x))
+
+	full_model = full_model.get_concrete_function(tf.TensorSpec(model.inputs[0].shape, model.inputs[0].dtype))
+
+	# Get frozen ConcreteFunction
+	frozen_func = convert_variables_to_constants_v2(full_model)
+	frozen_func.graph.as_graph_def()
+	layers = [op.name for op in frozen_func.graph.get_operations()]
+
+	print("-" * 60)
+	print("Frozen model layers: ")
+	for layer in layers:
+	    print(layer)
+
+	print("-" * 60)
+	print("Frozen model inputs: ")
+	print(frozen_func.inputs)
+	print("Frozen model outputs: ")
+	print(frozen_func.outputs)
+
+	# Save frozen graph to disk
+	tf.io.write_graph(graph_or_graph_def=frozen_func.graph,
+	                  logdir=frozen_out_path,
+	                  name=f"{frozen_graph_filename}.pb",
+	                  as_text=False)
+
+	# Save its text representation
+	tf.io.write_graph(graph_or_graph_def=frozen_func.graph,
+	                  logdir=frozen_out_path,
+	                  name=f"{frozen_graph_filename}.pbtxt",
+	                  as_text=True)
+
+def verify2(ogptype,modelfn):
+	imgds,labds = getTestData(ogptype)
+	opencv_net = cv2.dnn.readNetFromTensorflow(modelfn)
+
+	print("OpenCV model was successfully read. Model layers: \n", opencv_net.getLayerNames())
+
+	img = np.array(imgds[22])
+	imgcp = np.copy(img)
+	img = img.astype(np.float32)
+	print(img.shape)
+
+	input_blob = cv2.dnn.blobFromImage(
+    image=img,
+    scalefactor=1.0,
+    size=(50, 50),  # img target size
+    mean=(0,0,0),
+    swapRB=False,  # BGR -> RGB
+    crop=False )
+
+	print("Input blob shape: {}\n".format(input_blob.shape))
+
+	opencv_net.setInput(input_blob)
+	out = opencv_net.forward()
+
+	print(out.flatten())
+
+	dumpimg(imgcp,'img22.png')
+
+
 
 #ogptype = 'OGP-rect5x1'
 #modelfn = './font_ogp5x1_5000.h5'
 #topx = 5000
 #epochs=6
 
-# ogptype = 'OGP-small5x1'
-# modelfn = './font_ogpsm5x1_450.h5'
-# topx = 450
-# epochs= 10
+ogptype = 'OGP-small5x1'
+modelfn = './font_ogpsm5x1_450.h5'
+topx = 450
+epochs= 10
 
 # ogptype = 'OGP-rect2x1'
 # modelfn = './font_ogp2x1_4500.h5'
@@ -184,10 +254,18 @@ def verify(ogptype,modelfn):
 # topx = 480
 # epochs= 6
 
-ogptype = 'OGP-A10G'
-modelfn = './font_ogpa10g_750.h5'
-topx = 750
-epochs= 6
+# ogptype = 'OGP-A10G'
+# modelfn = './font_ogpa10g_test.h5'
+# topx = 750
+# epochs= 10
 
 #train(ogptype,modelfn,topx,epochs)
-verify(ogptype,modelfn)
+#verify(ogptype,modelfn)
+
+#newmodelfn = 'font_ogpsm5x1_450pb'
+#convertmodeltopb(modelfn,newmodelfn)
+
+
+ogptype = 'OGP-small5x1'
+modelfn = './font_ogpsm5x1_450pb.pb'
+verify2(ogptype,modelfn)
