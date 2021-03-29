@@ -222,6 +222,12 @@ def verify2(ogptype,modelfn):
 
 	dumpimg(imgcp,'img22.png')
 
+# def optimizefrozenpb():
+# 	conda create -n tf15 python=3.7
+# 	conda activate tf15
+# 	conda install tensorflow=1.5.0
+# 	python -m tensorflow.python.tools.optimize_for_inference --input ./model_20K_96_soft_f1/frozen_model/frozen_graph.pb --output ./model_20K_96_soft_f1/optimized/optmized_graph.pb --frozen_graph=True --input_names=x --output_names=Identity
+
 
 
 #ogptype = 'OGP-rect5x1'
