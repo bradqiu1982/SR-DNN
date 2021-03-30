@@ -157,6 +157,7 @@ def train_by_vgg19():
 	steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
 	model.fit(ds,epochs=3,steps_per_epoch=steps_per_epoch)
 	model.save('./FLOWER_CLASS_VGG19.h5')
+	
 
 def VerifySelfModel():
 	data_root = pathlib.Path(FILEFOLDER)
@@ -169,12 +170,34 @@ def VerifySelfModel():
 	img = tf.io.read_file('\\\\wux-engsys01\\PlanningForCast\\VMI\\broken\\芯片断裂2.jpg')
 	image_tensor = tf.io.decode_image(img, channels=3)
 	image_tensor  = tf.image.resize(image_tensor , [SZ, SZ])
-	image_tensor = tf.cast(image_tensor,tf.float32)
+	#image_tensor = tf.cast(image_tensor,tf.float32)
 	image_tensor  /= 255.0
-	image_tensor = tf.cast(image_tensor,tf.uint8);
+	#image_tensor = tf.cast(image_tensor,tf.uint8);
 	image_tensor = tf.expand_dims(image_tensor, axis=0)
 
 	model = tf.keras.models.load_model('./VCSEL_CLASS_self.h5')
+	res = model.predict(image_tensor)
+	print(res.flatten())
+	mxidx = np.argmax(res.flatten())
+	print(label_to_index[mxidx])
+
+def VerifyVGG19Model():
+	data_root = pathlib.Path(FILEFOLDER)
+	all_image_paths = list(data_root.glob('*/*'))
+	all_image_paths = [str(path) for path in all_image_paths]
+	random.shuffle(all_image_paths)
+	label_names = sorted(item.name for item in data_root.glob('*/') if item.is_dir())
+	label_to_index = dict((index, name) for index, name in enumerate(label_names))
+
+	img = tf.io.read_file('\\\\wux-engsys01\\PlanningForCast\\flowers\\sunflowers\\184683023_737fec5b18.jpg')
+	image_tensor = tf.io.decode_image(img, channels=3)
+	image_tensor  = tf.image.resize(image_tensor , [SZ, SZ])
+	#image_tensor = tf.cast(image_tensor,tf.float32)
+	image_tensor  /= 255.0
+	#image_tensor = tf.cast(image_tensor,tf.uint8);
+	image_tensor = tf.expand_dims(image_tensor, axis=0)
+
+	model = tf.keras.models.load_model('./FLOWER_CLASS_VGG19.h5')
 	res = model.predict(image_tensor)
 	print(res.flatten())
 	mxidx = np.argmax(res.flatten())
