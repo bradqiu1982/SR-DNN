@@ -11,9 +11,13 @@ import tensorflow_hub as hub
 import numpy as np
 from tensorflow import keras
 
-SZ = 512
-FILEFOLDER = '\\\\wux-engsys01\\PlanningForCast\\VMI'
+SZ = 224
+#FILEFOLDER = '\\\\wux-engsys01\\PlanningForCast\\VMI'
+FILEFOLDER = '\\\\wux-engsys01\\PlanningForCast\\flowers'
 AUTOTUNE = tf.data.experimental.AUTOTUNE
+BATCH_SIZE = 32
+
+
 
 def preprocess_image(image_raw):
 	img_tensor  = tf.image.decode_jpeg(image_raw, channels=3)
@@ -24,6 +28,7 @@ def preprocess_image(image_raw):
 def load_and_preprocess_image(path):
 	image = tf.io.read_file(path)
 	return preprocess_image(image)
+
 
 def change_range(image,label):
 		return 2*image-1, label
@@ -46,7 +51,7 @@ def get_training_ds():
 	image_label_ds = tf.data.Dataset.zip((image_ds, label_ds))
 
 
-	BATCH_SIZE = 32
+
 	ds = image_label_ds.shuffle(buffer_size=image_count)
 	ds = ds.repeat()
 	ds = ds.batch(BATCH_SIZE)
@@ -54,6 +59,41 @@ def get_training_ds():
 	
 	return (ds,image_count,len(label_names))
 
+
+def get_training_dsonehot():
+	data_root = pathlib.Path(FILEFOLDER)
+
+	all_image_paths = list(data_root.glob('*/*'))
+	all_image_paths = [str(path) for path in all_image_paths]
+	random.shuffle(all_image_paths)
+	label_names = sorted(item.name for item in data_root.glob('*/') if item.is_dir())
+
+
+	labels  = [i for i in range(0,len(label_names))]
+	one_hot_index = np.arange(len(labels)) * len(labels) + labels
+	one_hot = np.zeros((len(labels), len(labels)))
+	one_hot.flat[one_hot_index] = 1
+	label_to_index ={}
+	for i in range(0,len(label_names)):
+		label_to_index[label_names[i]] = one_hot[i]
+
+
+	all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in all_image_paths]
+
+
+	path_ds = tf.data.Dataset.from_tensor_slices(all_image_paths)
+	image_ds = path_ds.map(load_and_preprocess_image, num_parallel_calls=AUTOTUNE)
+	label_ds = tf.data.Dataset.from_tensor_slices(tf.cast(all_image_labels, tf.int64))
+	image_count = len(all_image_paths)
+	image_label_ds = tf.data.Dataset.zip((image_ds, label_ds))
+
+
+	ds = image_label_ds.shuffle(buffer_size=image_count)
+	ds = ds.repeat()
+	ds = ds.batch(BATCH_SIZE)
+	ds = ds.prefetch(buffer_size=AUTOTUNE)
+	
+	return (ds,image_count,len(label_names))
 
 def train_by_self():
 	ds,image_count,classcnt = get_training_ds()
@@ -70,21 +110,53 @@ def train_by_self():
 
 	model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['sparse_categorical_accuracy'])
 
-	steps_per_epoch=tf.math.ceil((image_count+2)/32).numpy()
-	model.fit(ds, epochs=6,steps_per_epoch=steps_per_epoch)
-	model.save('./VCSEL_CLASS_self.h5')
+	steps_per_epoch=tf.math.ceil((image_count+2)/BATCH_SIZE).numpy()
+	model.fit(ds, epochs=2,steps_per_epoch=steps_per_epoch)
+	model.save('./FLOWER_CLASS_self.h5')
 
 
-# def train_by_mobilev3_hub():
-# 	ds,image_count,classcnt = get_training_ds()
-# 	keras_ds = ds.map(change_range)
-# 	model = tf.keras.Sequential([tf.keras.layers.InputLayer(input_shape=(224,224,3)), hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v3_large_100_224/feature_vector/5", trainable=True), tf.keras.layers.Dropout(rate=0.2), tf.keras.layers.Dense(classcnt, kernel_regularizer=tf.keras.regularizers.l2(0.0001))])
-# 	model.compile(optimizer=tf.keras.optimizers.SGD(lr=0.005, momentum=0.9), loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=["sparse_categorical_accuracy"])
-# 	model.summary()
-# 	steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
-# 	model.fit(keras_ds,epochs=3,steps_per_epoch=steps_per_epoch)
-# 	model.save('./VCSEL_CLASS_mobilev3.h5')
+def train_by_mobilev3_hub():
+	os.environ["TFHUB_CACHE_DIR"] = "./hub_model"
+	ds,image_count,classcnt = get_training_ds()
+	keras_ds = ds.map(change_range)
+	model = tf.keras.models.Sequential()
+	model.add(tf.keras.layers.InputLayer(input_shape=(454,454,3)))
+	model.add(tf.keras.layers.Conv2D(64, (3, 3), activation='relu'))
+	model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+	model.add(tf.keras.layers.Conv2D(3, (3, 3), activation='relu'))
+	model.add(hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v3_large_100_224/feature_vector/5", trainable=True))
+	model.add(tf.keras.layers.Dropout(rate=0.2))
+	model.add(tf.keras.layers.Dense(classcnt, kernel_regularizer=tf.keras.regularizers.l2(0.0001)))
+	model.trainable=True
 
+	model.compile(optimizer=tf.keras.optimizers.SGD(lr=0.005, momentum=0.9), loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=["sparse_categorical_accuracy"])
+	model.summary()
+	#steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
+	#model.fit(keras_ds,epochs=3,steps_per_epoch=steps_per_epoch)
+	#model.save('./VCSEL_CLASS_mobilev3.h5')
+
+def train_by_vgg19():
+	ds,image_count,classcnt = get_training_ds()
+
+	model = tf.keras.models.Sequential();
+	model.add(tf.keras.applications.VGG19(include_top=False,input_shape=(SZ,SZ,3)))#, classes=classcnt))
+	model.add(tf.keras.layers.Flatten())
+	model.add(tf.keras.layers.Dense(1024, activation='relu',input_dim=512))
+	model.add(tf.keras.layers.Dense(512, activation='relu'))
+	model.add(tf.keras.layers.Dense(256, activation='relu'))
+	model.add(tf.keras.layers.Dropout(0.2));
+	model.add(tf.keras.layers.Dense(128, activation='relu'))
+	model.add(tf.keras.layers.Dropout(0.2));
+	model.add(tf.keras.layers.Dense(classcnt, activation='softmax'))
+	model.trainable=True
+
+	#model.compile(optimizer='adam', loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
+	model.compile(optimizer=tf.keras.optimizers.SGD(lr=0.001, momentum=0.9), loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['sparse_categorical_accuracy'])
+	
+	model.summary()
+	steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
+	model.fit(ds,epochs=3,steps_per_epoch=steps_per_epoch)
+	model.save('./FLOWER_CLASS_VGG19.h5')
 
 def VerifySelfModel():
 	data_root = pathlib.Path(FILEFOLDER)
@@ -109,5 +181,7 @@ def VerifySelfModel():
 	print(label_to_index[mxidx])
 
 
-train_by_self()
+#train_by_self()
 #VerifySelfModel()
+#train_by_vgg19()
+train_by_mobilev3_hub()
