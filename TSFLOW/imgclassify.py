@@ -11,7 +11,8 @@ import tensorflow_hub as hub
 import numpy as np
 from tensorflow import keras
 
-SZ = 224
+SZ=454
+#SZ = 224
 #FILEFOLDER = '\\\\wux-engsys01\\PlanningForCast\\VMI'
 FILEFOLDER = '\\\\wux-engsys01\\PlanningForCast\\flowers'
 AUTOTUNE = tf.data.experimental.AUTOTUNE
@@ -131,9 +132,9 @@ def train_by_mobilev3_hub():
 
 	model.compile(optimizer=tf.keras.optimizers.SGD(lr=0.005, momentum=0.9), loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=["sparse_categorical_accuracy"])
 	model.summary()
-	#steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
-	#model.fit(keras_ds,epochs=3,steps_per_epoch=steps_per_epoch)
-	#model.save('./VCSEL_CLASS_mobilev3.h5')
+	steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
+	model.fit(keras_ds,epochs=3,steps_per_epoch=steps_per_epoch)
+	model.save('./FLOWER_CLASS_mobilev3.h5')
 
 def train_by_vgg19():
 	ds,image_count,classcnt = get_training_ds()

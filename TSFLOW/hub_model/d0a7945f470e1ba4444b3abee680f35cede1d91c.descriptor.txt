@@ -1,0 +1,3 @@
+Module: https://tfhub.dev/google/imagenet/mobilenet_v3_large_100_224/feature_vector/5
+Download Time: 2021-03-30 17:00:14.427595
+Downloader Hostname: WUX-L80013225 (PID:22664)
