@@ -157,8 +157,30 @@ def train_by_mobilev3_hub():
 	model.summary()
 
 	#steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
-	model.fit(ds,epochs=4,steps_per_epoch=160)
+	model.fit(ds,epochs=8,steps_per_epoch=160)
 	model.save('./VCSEL_CLASS_mobilev3_dir_new4.h5')
+
+def train_by_resnet101_hub():
+	ds,image_count,classcnt = get_training_ds()
+	model = tf.keras.models.Sequential()
+	model.add(tf.keras.layers.InputLayer(input_shape=(SZ,SZ,3)))
+	# model.add(tf.keras.layers.Conv2D(64, (3, 3), activation='relu'))
+	# model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+	# model.add(tf.keras.layers.Conv2D(3, (3, 3), activation='relu'))
+	#model.add(hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v3_large_100_224/feature_vector/5", trainable=True))
+	model.add(hub.KerasLayer('./hub_model/resnet_v2_101',trainable=True))
+	model.add(tf.keras.layers.Dropout(rate=0.2))
+	model.add(tf.keras.layers.Dense(classcnt, activation='softmax'))
+	model.trainable=True
+
+	model.compile(optimizer=tf.keras.optimizers.SGD(lr=0.005, momentum=0.9), loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=["sparse_categorical_accuracy"])
+	model.summary()
+
+	#steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
+	# model.fit(ds,epochs=8,steps_per_epoch=160)
+	# model.save('./VCSEL_CLASS_resnet101.h5')
+
+
 
 def train_by_vgg19():
 	ds,image_count,classcnt = get_training_ds()
@@ -283,26 +305,12 @@ def VerifyVCSELwithOpenCV():
 		cfd = 100 * np.max(res.flatten())
 		print('{:.0f}'.format(cfd))
 
-		f = fn.replace('.jpg','_'+lb+'_'+str(cfd)[0:2]+'.png').replace('.png','_'+lb+'_'+str(cfd)[0:2]+'.png').replace('.bmp','_'+lb+'_'+str(cfd)[0:2]+'.png').replace('.BMP','_'+lb+'_'+str(cfd)[0:2]+'.png').replace('.Bmp','_'+lb+'_'+str(cfd)[0:2]+'.png')
+		f = fn.replace('.jpg','_'+lb+'_'+str(cfd)[0:2]+'.jpg').replace('.png','_'+lb+'_'+str(cfd)[0:2]+'.png').replace('.bmp','_'+lb+'_'+str(cfd)[0:2]+'.png').replace('.BMP','_'+lb+'_'+str(cfd)[0:2]+'.png').replace('.Bmp','_'+lb+'_'+str(cfd)[0:2]+'.png')
 
 		cv2.imwrite(f,imgcp)
 
-def VerifyModels(tp):
-	data_root = pathlib.Path(FILEFOLDER)
-	all_image_paths = list(data_root.glob('*/*'))
-	all_image_paths = [str(path) for path in all_image_paths]
-	random.shuffle(all_image_paths)
-	label_names = sorted(item.name for item in data_root.glob('*/') if item.is_dir())
-	label_to_index = dict((index, name) for index, name in enumerate(label_names))
-
-	img = tf.io.read_file('\\\\wux-engsys01\\PlanningForCast\\flowers\\sunflowers\\184683023_737fec5b18.jpg')
-	image_tensor = tf.io.decode_image(img, channels=3)
-	image_tensor  = tf.image.resize(image_tensor , [SZ, SZ])
-	#image_tensor = tf.cast(image_tensor,tf.float32)
-	image_tensor  /= 255.0
-
-	#image_tensor = tf.cast(image_tensor,tf.uint8);
-
+def VerifyModels(tp): 
+	label_to_index = dict((index,name) for index, name in enumerate(label_names))
 
 	model = ''
 	if tp == 'VGG19':
@@ -310,17 +318,45 @@ def VerifyModels(tp):
 		model = tf.keras.models.load_model('./FLOWER_CLASS_VGG19.h5')
 	elif tp == 'MBV3':
 		print('MOBILEV3 MODEL')
-		image_tensor = 2*image_tensor - 1
-		model = tf.keras.models.load_model('./FLOWER_CLASS_mobilev3.h5', custom_objects={'KerasLayer': hub.KerasLayer})
+		model = tf.keras.models.load_model('./VCSEL_CLASS_mobilev3_dir_new44.h5', custom_objects={'KerasLayer': hub.KerasLayer})
+	elif tp == 'RCNN101':
+		print('RCNN101 MODEL')
+		model = tf.keras.models.load_model('./VCSEL_CLASS_resnet101_8.h5', custom_objects={'KerasLayer': hub.KerasLayer})
 	else:
 		print('SELF MODEL')
 		model = tf.keras.models.load_model('./VCSEL_CLASS_self.h5')
 
-	image_tensor = tf.expand_dims(image_tensor, axis=0)
-	res = model.predict(image_tensor)
-	print(res.flatten())
-	mxidx = np.argmax(res.flatten())
-	print(label_to_index[mxidx])
+	data_root = pathlib.Path('\\\\wux-engsys01\\PlanningForCast\\VCSEL_VERIFY\\v1')
+	all_image_paths = list(data_root.glob('*'))
+	all_image_paths = [str(path) for path in all_image_paths]
+
+	#print(all_image_paths)
+	for fn in all_image_paths:
+		print(fn)
+
+		img = tf.io.read_file(fn)
+		image_tensor = tf.io.decode_image(img, channels=3)
+		image_tensor  = tf.image.resize(image_tensor , [SZ, SZ])
+		#image_tensor = tf.cast(image_tensor,tf.float32)
+		image_tensor  /= 255.0
+		#image_tensor = tf.cast(image_tensor,tf.uint8);
+
+		image_tensor = tf.expand_dims(image_tensor, axis=0)
+		res = model.predict(image_tensor)
+		print(res.flatten())
+
+		mxidx = np.argmax(res.flatten())
+		print(label_to_index[mxidx])
+
+		img2 = cv2.imread(fn,cv2.IMREAD_COLOR)
+		lb = label_to_index[mxidx]
+
+		cfd = 100 * np.max(res.flatten())
+		print('{:.0f}'.format(cfd))
+
+		f = fn.replace('.jpg','_'+lb+'_'+str(cfd)[0:2]+'.jpg').replace('.png','_'+lb+'_'+str(cfd)[0:2]+'.png').replace('.bmp','_'+lb+'_'+str(cfd)[0:2]+'.png').replace('.BMP','_'+lb+'_'+str(cfd)[0:2]+'.png').replace('.Bmp','_'+lb+'_'+str(cfd)[0:2]+'.png')
+		cv2.imwrite(f,img2)
+
 
 def convertmodeltopb(oldmodelfn,newmodelfn):
 	model = tf.keras.models.load_model(oldmodelfn, custom_objects={'KerasLayer': hub.KerasLayer})
@@ -353,48 +389,143 @@ def convertmodeltopb(oldmodelfn,newmodelfn):
 	                  logdir=frozen_out_path,
 	                  name=f"{frozen_graph_filename}.pb",
 	                  as_text=False)
+	tf.io.write_graph(graph_or_graph_def=frozen_func.graph,
+	              logdir=frozen_out_path,
+	              name=f"{frozen_graph_filename}.pbtxt",
+	              as_text=True)
+
+
+def getrealimgbound(img,fn):
+	sharpimg = cv2.GaussianBlur(img,(0,0),3)
+	sharpimg = cv2.addWeighted(img,2.0,sharpimg,-0.4,0)
+	srcgray = cv2.cvtColor(sharpimg,cv2.COLOR_BGR2GRAY)
+	blurred = cv2.GaussianBlur(srcgray,(3,3),0)
+	edged = copy.deepcopy(blurred)
+	edged = cv2.Canny(blurred,50,200,edged,3,False)
+
+	#cv2.imwrite(fn.replace('.jpg','_C.jpg'),edged)
+ 
+	high,width = edged.shape
+
+	lowy = int(0.1*high)
+	highy = int(0.9*high)
+	lowx = int(0.1*width)
+	highx = int(0.9*width)
+
+	xlist = []
+	ylist = []
+
+	firstcleanzone = int(0.1*width)
+	secondcleanzone = int(0.9*width)
+	zerotime = 0
+
+	for x in range(0,width-3):
+		submat = edged[lowy:highy,x:x+3]
+		nonzero = cv2.countNonZero(submat)
+		if nonzero >= 2:
+			xlist.append(x)
+
+		if x < firstcleanzone:
+			if nonzero <2 and len(xlist) > 0:
+				zerotime = zerotime+1
+			if zerotime >= 20 and len(xlist) > 0:
+				xlist = []
+				zerotime = 0
+
+		if x > lowx and x < highx:
+			zerotime = 0
+
+		if x > secondcleanzone:
+			if nonzero < 2:
+				zerotime = zerotime + 1
+			if zerotime >= 20:
+				break
+
+
+	firstcleanzone = int(0.1*high)
+	secondcleanzone = int(0.9*high)
+	zerotime = 0
+
+	for y in range(0,high-3):
+		submat = edged[y:y+3,lowx:highx]
+		nonzero = cv2.countNonZero(submat)
+		if nonzero >= 2:
+			ylist.append(y)
+
+		if y < firstcleanzone:
+			if nonzero <2 and len(ylist) > 0:
+				zerotime = zerotime+1
+			if zerotime >= 20 and len(ylist) > 0:
+				ylist = []
+				zerotime = 0
+
+		if y > lowy and y < highy:
+			zerotime = 0
+
+		if y > secondcleanzone:
+			if nonzero < 2:
+				zerotime = zerotime + 1
+			if zerotime >= 20:
+				break
+
+	return xlist,ylist
+
 
 
 def convertimage():
-	data_root = pathlib.Path('\\\\wux-engsys01\\PlanningForCast\\VCSEL3\\SixInch-BAK')
+	data_root = pathlib.Path('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\IIVI-VF')
 	all_image_paths = list(data_root.glob('*'))
+
+	#data_root = pathlib.Path('\\\\wux-engsys01\\PlanningForCast\\VCSEL4')
+	#all_image_paths = list(data_root.glob('*/*'))
 
 	all_image_paths = [str(path) for path in all_image_paths]
 	for fn in all_image_paths:
-		pt = pathlib.Path(fn).parents[0]
+		img = cv2.imread(fn,cv2.IMREAD_COLOR)
+		xlist,ylist = getrealimgbound(img,fn)
+		img = img[np.min(ylist):np.max(ylist),np.min(xlist):np.max(xlist)]
+		# cv2.imwrite(fn,img)
 
+		pt = pathlib.Path(fn).parents[0]
 		uid = uuid.uuid4()
 		fd = str(pt)+'\\fd'+str(uid)
-		img = cv2.imread(fn,cv2.IMREAD_COLOR)
-
 		f0 = fd+'_00.jpg'
 		cv2.imwrite(f0,img)
 
-		img = cv2.transpose(img)
-		img = cv2.flip(img,1)
-		f1 = fd+'_90.jpg'
-		cv2.imwrite(f1,img)
+		# img = cv2.transpose(img)
+		# img = cv2.flip(img,1)
+		# f1 = fd+'_90.jpg'
+		# cv2.imwrite(f1,img)
 
-		img = cv2.transpose(img)
-		img =cv2.flip(img,1)
-		f2 =  fd+'_180.jpg'
-		cv2.imwrite(f2,img)
+		# img = cv2.transpose(img)
+		# img =cv2.flip(img,1)
+		# f2 =  fd+'_180.jpg'
+		# cv2.imwrite(f2,img)
 
-		img = cv2.transpose(img)
-		img =cv2.flip(img,1)
-		f3 = fd+'_270.jpg'
-		cv2.imwrite(f3,img)
+		# img = cv2.transpose(img)
+		# img =cv2.flip(img,1)
+		# f3 = fd+'_270.jpg'
+		# cv2.imwrite(f3,img)
+
+def loadresnet101():
+	print('try to load model')
+	opencv_net = cv2.dnn.readNetFromTensorflow('./VCSEL_CLASS_resnet101_4.pb')
+	print('loaded model')
 
 
+
+#train_by_resnet101_hub()
 
 #train_by_self()
 #VerifySelfModel()
 #train_by_vgg19()
 #train_by_mobilev3_hub()
 #'VGG19','MBV3'
-#VerifyModels('MBV3')
 
-#convertmodeltopb('./VCSEL_CLASS_mobilev3_dir_new4.h5','VCSEL_CLASS_mobilev3_dir_new4')
+#VerifyModels('MBV3')
+#VerifyModels('RCNN101')
+
+#convertmodeltopb('./VCSEL_CLASS_resnet101_4.h5','VCSEL_CLASS_resnet101_4')
 
 #train_by_self()
 #train_by_mobilev3_hub()
@@ -403,5 +534,6 @@ def convertimage():
 
 #train_by_mobilev3_hub()
 
-VerifyVCSELwithOpenCV()
+#VerifyVCSELwithOpenCV()
 
+loadresnet101()
