@@ -28,45 +28,154 @@ def convtimg(s64):
 	return img1
 
 #OGP-rect5x1,
+# def getTrainData(ogptype,topx):
+# 	AUTOTUNE = tf.data.experimental.AUTOTUNE
+# 	imgstr = []
+# 	labs = []
+
+# 	with pyodbc.connect(Driver='{ODBC Driver 17 for SQL Server}',Server='wuxinpi.chn.ii-vi.net', UID='WATApp', PWD='WATApp@123', Database='WAT') as conn:
+# 		cursor = conn.cursor()
+# 		sql = "select top 2 [TrainingImg],[ImgVal] from [WAT].[dbo].[AITrainingData] where Revision = '"+ogptype+"'"
+# 		cursor.execute(sql)
+# 		rows = cursor.fetchall() 
+# 		for row in rows:
+# 			imgstr.append(str(row[0]))
+# 			labs.append(int(row[1])-48)
+# 		cursor.close()
+
+# 	img1 = convtimg(imgstr[0])
+# 	img2 = convtimg(imgstr[1])
+# 	imgarray = np.vstack((img1[None],img2[None]))
+
+# 	#print(img2.shape)
+# 	#print(imgarray.shape)
+
+# 	print('start loading data..........')
+# 	i = 0
+# 	img2list = []
+# 	with pyodbc.connect(Driver='{ODBC Driver 17 for SQL Server}',Server='wuxinpi.chn.ii-vi.net', UID='WATApp', PWD='WATApp@123', Database='WAT') as conn:
+# 		cursor = conn.cursor()
+# 		sql = "select top "+str(topx)+" [TrainingImg],[ImgVal] from [WAT].[dbo].[AITrainingData] where Revision = '"+ogptype+"'" # order by UpdateTime desc"
+# 		cursor.execute(sql)
+# 		rows = cursor.fetchall() 
+# 		for row in rows:
+# 			if i%100 == 0:
+# 				print("get train data "+str(i)+"..................")
+# 			img2 = convtimg(str(row[0]))
+# 			img2list.append(img2)
+# 			labs.append(int(row[1])-48)
+# 			i = i+1
+# 		cursor.close()
+# 	i = 0
+# 	for img2 in img2list:
+# 		if i%100 == 0:
+# 				print("vstack data "+str(i)+"..................")
+# 		imgarray = np.vstack((imgarray,img2[None]))
+# 		i = i+1
+
+# 	print("finish data stack................")
+
+# 	labarray = np.array(labs)
+
+# 	label_ds = tf.data.Dataset.from_tensor_slices(tf.cast(labarray, tf.int64))
+# 	image_ds = tf.data.Dataset.from_tensor_slices(imgarray)
+# 	train_dataset = tf.data.Dataset.zip((image_ds, label_ds))
+
+# 	train_dataset = train_dataset.repeat()
+# 	BATCH_SIZE = 32
+# 	SHUFFLE_BUFFER_SIZE = 500
+# 	train_dataset = train_dataset.shuffle(SHUFFLE_BUFFER_SIZE).batch(BATCH_SIZE)
+# 	train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
+
+# 	return train_dataset
+
+
 def getTrainData(ogptype,topx):
 	AUTOTUNE = tf.data.experimental.AUTOTUNE
 	imgstr = []
 	labs = []
 
-	with pyodbc.connect(Driver='{ODBC Driver 17 for SQL Server}',Server='wuxinpi.china.ads.finisar.com', UID='WATApp', PWD='WATApp@123', Database='WAT') as conn:
-		cursor = conn.cursor()
-		sql = "select top 2 [TrainingImg],[ImgVal] from [WAT].[dbo].[AITrainingData] where Revision = '"+ogptype+"'"
-		cursor.execute(sql)
-		rows = cursor.fetchall() 
-		for row in rows:
-			imgstr.append(str(row[0]))
-			labs.append(int(row[1])-48)
-		cursor.close()
+	# with pyodbc.connect(Driver='{ODBC Driver 17 for SQL Server}',Server='wuxinpi.chn.ii-vi.net', UID='WATApp', PWD='WATApp@123', Database='WAT') as conn:
+	# 	cursor = conn.cursor()
+	# 	sql = "select top 2 [TrainingImg],[ImgVal] from [WAT].[dbo].[AITrainingData] where Revision = '"+ogptype+"'"
+	# 	cursor.execute(sql)
+	# 	rows = cursor.fetchall() 
+	# 	for row in rows:
+	# 		imgstr.append(str(row[0]))
+	# 		labs.append(int(row[1])-48)
+	# 	cursor.close()
 
-	img1 = convtimg(imgstr[0])
-	img2 = convtimg(imgstr[1])
-	imgarray = np.vstack((img1[None],img2[None]))
+	# img1 = convtimg(imgstr[0])
+	# img2 = convtimg(imgstr[1])
+	# imgarray = np.vstack((img1[None],img2[None]))
 
 	#print(img2.shape)
 	#print(imgarray.shape)
 
 	print('start loading data..........')
-
-	with pyodbc.connect(Driver='{ODBC Driver 17 for SQL Server}',Server='wuxinpi.china.ads.finisar.com', UID='WATApp', PWD='WATApp@123', Database='WAT') as conn:
+	i = 0
+	img2list = []
+	with pyodbc.connect(Driver='{ODBC Driver 17 for SQL Server}',Server='wuxinpi.chn.ii-vi.net', UID='WATApp', PWD='WATApp@123', Database='WAT') as conn:
 		cursor = conn.cursor()
-		sql = "select top "+str(topx)+" [TrainingImg],[ImgVal] from [WAT].[dbo].[AITrainingData] where Revision = '"+ogptype+"' order by UpdateTime desc"
+		sql = "select top "+str(topx)+" [TrainingImg],[ImgVal] from [WAT].[dbo].[AITrainingData] where Revision = '"+ogptype+"' order by UpdateTime asc"
 		cursor.execute(sql)
 		rows = cursor.fetchall() 
 		for row in rows:
+			if i%100 == 0:
+				print("get train data "+str(i)+"..................")
 			img2 = convtimg(str(row[0]))
-			imgarray = np.vstack((imgarray,img2[None]))
+			img2list.append(img2)
 			labs.append(int(row[1])-48)
+			i = i+1
 		cursor.close()
+
+	imgarraylist = []
+	tempimg = []
+	imgarray = None
+
+
+	i = 0
+	for img2 in img2list:
+		if i%100 == 0:
+				print("vstack data "+str(i)+"..................")
+
+		if i%500 == 0:
+			tempimg.append(img2)
+			if i != 0:
+				imgarraylist.append(imgarray)
+			i = i+1
+			continue
+
+		if len(tempimg) == 1:
+			imgarray = np.vstack((tempimg[0][None],img2[None]))
+			tempimg = []
+			i = i+1
+			continue
+
+		imgarray = np.vstack((imgarray,img2[None]))
+		i = i+1
+
+	imgarraylist.append(imgarray)
+
+	print(len(imgarraylist))
+
+	firstarray = None
+	i = 0
+	for ia in imgarraylist:
+		if i == 0:
+			firstarray = ia
+		else:
+			firstarray = np.vstack((firstarray,ia))
+		i = i+1
+
+	print("finish data stack................")
+
+	print(firstarray.shape)
 
 	labarray = np.array(labs)
 
 	label_ds = tf.data.Dataset.from_tensor_slices(tf.cast(labarray, tf.int64))
-	image_ds = tf.data.Dataset.from_tensor_slices(imgarray)
+	image_ds = tf.data.Dataset.from_tensor_slices(firstarray)
 	train_dataset = tf.data.Dataset.zip((image_ds, label_ds))
 
 	train_dataset = train_dataset.repeat()
@@ -82,35 +191,68 @@ def getTestData(ogptype):
 	imgstr = []
 	labs = []
 
-	with pyodbc.connect(Driver='{ODBC Driver 17 for SQL Server}',Server='wuxinpi.china.ads.finisar.com', UID='WATApp', PWD='WATApp@123', Database='WAT') as conn:
-		cursor = conn.cursor()
-		sql = "select top 2 [TrainingImg],[ImgVal] from [WAT].[dbo].[AITrainingData] where Revision = '"+ogptype+"'"
-		cursor.execute(sql)
-		rows = cursor.fetchall() 
-		for row in rows:
-			imgstr.append(str(row[0]))
-			labs.append(int(row[1])-48)
-		cursor.close()
+	print('start loading data..........')
+	i = 0
+	img2list = []
 
-	img1 = convtimg(imgstr[0])
-	img2 = convtimg(imgstr[1])
-	imgarray = np.vstack((img1[None],img2[None]))
-
-
-	with pyodbc.connect(Driver='{ODBC Driver 17 for SQL Server}',Server='wuxinpi.china.ads.finisar.com', UID='WATApp', PWD='WATApp@123', Database='WAT') as conn:
+	with pyodbc.connect(Driver='{ODBC Driver 17 for SQL Server}',Server='wuxinpi.chn.ii-vi.net', UID='WATApp', PWD='WATApp@123', Database='WAT') as conn:
 		cursor = conn.cursor()
 		#sql = "select top 150 [TrainingImg],[ImgVal] from [WAT].[dbo].[AITrainingData] where Revision = '"+ogptype+"' order by UpdateTime asc"
-		sql = "select top 100 ChildImg,ImgVal from SonImg where MainImgKey in (select MainImgKey from OGPFatherImg where  WaferNum = '62102-493-020E08')  and ImgVal <> 88 and ImgVal <> 89"
+		sql = "select top 580 ChildImg,ImgVal from SonImg where MainImgKey in (select MainImgKey from OGPFatherImg where  WaferNum = 'S2102040427')  and ImgVal <> 88 and ImgVal <> 89"
 		cursor.execute(sql)
 		rows = cursor.fetchall() 
 		for row in rows:
+			if i%100 == 0:
+				print("get train data "+str(i)+"..................")
 			img2 = convtimg(str(row[0]))
-			imgarray = np.vstack((imgarray,img2[None]))
+			img2list.append(img2)
 			labs.append(int(row[1])-48)
+			i = i+1
 		cursor.close()
 
+	imgarraylist = []
+	tempimg = []
+	imgarray = None
+
+
+	i = 0
+	for img2 in img2list:
+		if i%100 == 0:
+				print("vstack data "+str(i)+"..................")
+
+		if i%500 == 0:
+			tempimg.append(img2)
+			if i != 0:
+				imgarraylist.append(imgarray)
+			i = i+1
+			continue
+
+		if len(tempimg) == 1:
+			imgarray = np.vstack((tempimg[0][None],img2[None]))
+			tempimg = []
+			i = i+1
+			continue
+
+		imgarray = np.vstack((imgarray,img2[None]))
+		i = i+1
+
+	imgarraylist.append(imgarray)
+
+	print(len(imgarraylist))
+
+	firstarray = None
+	i = 0
+	for ia in imgarraylist:
+		if i == 0:
+			firstarray = ia
+		else:
+			firstarray = np.vstack((firstarray,ia))
+		i = i+1
+
+	print("finish data stack................")
+
 	labarray = np.array(labs)
-	return (imgarray, labarray)
+	return (firstarray, labarray)
 
 	# test_dataset = tf.data.Dataset.from_tensor_slices((imgarray, labarray))
 	# BATCH_SIZE = 32
@@ -159,11 +301,11 @@ def verify(ogptype,modelfn):
 	model = tf.keras.models.load_model(modelfn, custom_objects={'KerasLayer': hub.KerasLayer})
 	model.evaluate(imgds,labds, verbose=2)
 
-	for i in range(1,500):
-		res = model.predict(imgds[i:i+1])
-		mxidx = np.argmax(res.flatten())
-		fn = 'fnt_'+ str(i)+'_'+str(mxidx)+'.png'
-		dumpimg(imgds[i],fn)
+	# for i in range(1,2000):
+	# 	res = model.predict(imgds[i:i+1])
+	# 	mxidx = np.argmax(res.flatten())
+	# 	fn = 'fnt_'+ str(i)+'_'+str(mxidx)+'.png'
+	# 	dumpimg(imgds[i],fn)
 
 def convertmodeltopb(oldmodelfn,newmodelfn):
 	model = tf.keras.models.load_model(oldmodelfn, custom_objects={'KerasLayer': hub.KerasLayer})
@@ -208,29 +350,25 @@ def verify2(ogptype,newmodelfn):
 	opencv_net = cv2.dnn.readNetFromTensorflow('./'+newmodelfn+'.pb')
 
 	#print("OpenCV model was successfully read. Model layers: \n", opencv_net.getLayerNames())
+	for i in range(1,2000):
+		img = np.array(imgds[i])
+		imgcp = np.copy(img)
 
-	img = np.array(imgds[50])
-	imgcp = np.copy(img)
-	img = img.astype(np.float32)
-	print(img.shape)
+		input_blob = cv2.dnn.blobFromImage(
+	    image=img,
+	    scalefactor=1.0,
+	    size=(SZ, SZ),  # img target size
+	    mean=(0,0,0),
+	    swapRB=False,  # BGR -> RGB
+	    crop=False )
 
-	input_blob = cv2.dnn.blobFromImage(
-    image=img,
-    scalefactor=1.0,
-    size=(SZ, SZ),  # img target size
-    mean=(0,0,0),
-    swapRB=False,  # BGR -> RGB
-    crop=False )
 
-	print("Input blob shape: {}\n".format(input_blob.shape))
+		opencv_net.setInput(input_blob)
+		out = opencv_net.forward()
 
-	opencv_net.setInput(input_blob)
-	out = opencv_net.forward()
-
-	print(out.flatten())
-	mxidx = np.argmax(out.flatten())
-	fn = 'fnt_50_'+str(mxidx)+'.png'
-	dumpimg(imgcp,fn)
+		mxidx = np.argmax(out.flatten())
+		fn = 'fnt_'+ str(i)+'_'+str(mxidx)+'.png'
+		dumpimg(imgcp,fn)
 
 def random_invert_img(x, p=0.5):
 	if  tf.random.uniform([]) < p:
@@ -271,10 +409,10 @@ def img_operate(image):
 
 
 # ogptype = 'OGP-rect5x1'
-# modelfn = './font_ogp5x1_7000.h5'
-# topx = 7000
+# modelfn = './font_ogp5x1_8390_6.h5'
+# topx = 8390
 # epochs=6
-# newmodelfn = 'font_ogp5x1_7000'
+# newmodelfn = 'font_ogp5x1_8390_6'
 
 # ogptype = 'OGP-small5x1'
 # modelfn = './font_ogpsm5x1_450.h5'
@@ -283,28 +421,29 @@ def img_operate(image):
 # newmodelfn = 'font_ogpsm5x1_450'
 
 # ogptype = 'OGP-rect2x1'
-# modelfn = './font_ogp2x1_4500.h5'
-# topx = 4500
-# epochs= 6
-# newmodelfn = 'font_ogp2x1_4500'
+# modelfn = './font_ogp2x1_5330_5.h5'
+# topx = 5330
+# epochs= 5
+# newmodelfn = 'font_ogp2x1_5330_5'
 
-ogptype = 'OGP-circle2168'
-modelfn = './font_ogp2168_1160_10.h5'
-topx = 1160
-epochs= 10
-newmodelfn = 'font_ogp2168_1160_10'
+# ogptype = 'OGP-circle2168'
+# modelfn = './font_ogp2168_1160_10.h5'
+# topx = 1160
+# epochs= 10
+# newmodelfn = 'font_ogp2168_1160_10'
 
-# ogptype = 'OGP-sm-iivi'
-# modelfn = './font_ogpsmiivi_1000.h5'
-# topx = 1000
-# epochs= 6
-# newmodelfn = 'font_ogpsmiivi_1000'
+ogptype = 'OGP-sm-iivi'
+modelfn = './font_ogpsmiivi_1113_14.h5'
+topx = 1113
+epochs= 14
+newmodelfn = 'font_ogpsmiivi_1113_14'
 
 # ogptype = 'OGP-iivi'
-# modelfn = './font_ogpiivi_480.h5'
-# topx = 480
-# epochs= 6
-# newmodelfn = 'font_ogpiivi_480'
+# modelfn = './font_ogpiivi_620_16.h5'
+# topx = 620
+# epochs= 16
+# newmodelfn = 'font_ogpiivi_620_16'
+
 
 # ogptype = 'OGP-A10G'
 # modelfn = './font_ogpa10g_750.h5'
@@ -316,7 +455,42 @@ newmodelfn = 'font_ogp2168_1160_10'
 
 #verify(ogptype,modelfn)
 
-#convertmodeltopb(modelfn,newmodelfn)
+convertmodeltopb(modelfn,newmodelfn)
 
-verify2(ogptype,newmodelfn)
+# verify2(ogptype,newmodelfn)
+
+
+# modelfn = './font_ogp2x1_5330_8.h5'
+# newmodelfn = 'font_ogp2x1_5330_8'
+# convertmodeltopb(modelfn,newmodelfn)
+
+# modelfn = './font_ogp5x1_8390_6.h5'
+# newmodelfn = 'font_ogp5x1_8390_6'
+# convertmodeltopb(modelfn,newmodelfn)
+
+# modelfn = './font_ogpa10g_810_14.h5'
+# newmodelfn = 'font_ogpa10g_810_14'
+# convertmodeltopb(modelfn,newmodelfn)
+
+# modelfn = './font_ogpsm5x1_503_16.h5'
+# newmodelfn = 'font_ogpsm5x1_503_16'
+# convertmodeltopb(modelfn,newmodelfn)
+
+# modelfn = './font_ogpsmiivi_1113_6.h5'
+# verify(ogptype,modelfn)
+
+# modelfn = './font_ogpsmiivi_1113_8.h5'
+# verify(ogptype,modelfn)
+
+# modelfn = './font_ogpsmiivi_1113_10.h5'
+# verify(ogptype,modelfn)
+
+# modelfn = './font_ogpsmiivi_1113_12.h5'
+# verify(ogptype,modelfn)
+
+# modelfn = './font_ogpsmiivi_1113_14.h5'
+# verify(ogptype,modelfn)
+
+# modelfn = './font_ogpsmiivi_1113_16.h5'
+# verify(ogptype,modelfn)
 

@@ -536,4 +536,4 @@ def loadresnet101():
 
 #VerifyVCSELwithOpenCV()
 
-loadresnet101()
+#loadresnet101()

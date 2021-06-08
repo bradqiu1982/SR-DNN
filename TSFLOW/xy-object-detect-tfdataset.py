@@ -9,6 +9,7 @@ import numpy as np
 import cv2
 import copy
 
+import pathlib
 
 from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 from tensorflow.lite.python.util import run_graph_optimizations, get_grappler_config
@@ -197,6 +198,55 @@ def verifymbv2pb5():
     high,width,CH = cimg.shape
     drawtangle(output_dict['detection_boxes'][0][0],cimg,high,width,(0,0,255))
     cv2.imwrite('./tfrec/vcsel2.jpg',cimg)
+
+
+def verifymbv2pb7():
+    model = tf.saved_model.load('./tfrec/six_faster_savedmodel/saved_model')
+    fn = './tfrec/vcselsix.jpg'
+    img = tf.io.read_file(fn)
+    image_tensor = tf.io.decode_image(img, channels=3)
+    image_tensor = tf.expand_dims(image_tensor, axis=0)
+    output_dict = model(image_tensor)
+
+    # print(output_dict, file=open("./res.txt", "a"))
+    cimg = cv2.imread(fn,cv2.IMREAD_COLOR)
+    high,width,CH = cimg.shape
+    drawtangle(output_dict['detection_boxes'][0][0],cimg,high,width,(0,0,255))
+    cv2.imwrite('./tfrec/vcselsix2.jpg',cimg)
+
+def verifymbv2pb8():
+    model = tf.saved_model.load('./tfrec/iivi_faster_savedmodel/saved_model')
+    fn = './tfrec/vcseliivi.jpg'
+    img = tf.io.read_file(fn)
+    image_tensor = tf.io.decode_image(img, channels=3)
+    image_tensor = tf.expand_dims(image_tensor, axis=0)
+    output_dict = model(image_tensor)
+
+    # print(output_dict, file=open("./res.txt", "a"))
+    cimg = cv2.imread(fn,cv2.IMREAD_COLOR)
+    high,width,CH = cimg.shape
+    drawtangle(output_dict['detection_boxes'][0][0],cimg,high,width,(0,0,255))
+    drawtangle(output_dict['detection_boxes'][0][1],cimg,high,width,(0,0,255))
+    cv2.imwrite('./tfrec/vcseliivi2.jpg',cimg)
+
+def verifymbv2pb9():
+    model = tf.saved_model.load('./tfrec/iivi_faster_savedmodel/saved_model')
+    data_root = pathlib.Path('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\IIVI-VF')
+    all_image_paths = list(data_root.glob('*'))
+    fs = [str(path) for path in all_image_paths]
+    for fn in fs:
+        if '.JPG' in fn.upper() or '.JPEG' in fn.upper():
+            img = tf.io.read_file(fn)
+            image_tensor = tf.io.decode_image(img, channels=3)
+            image_tensor = tf.expand_dims(image_tensor, axis=0)
+            output_dict = model(image_tensor)
+
+            # print(output_dict, file=open("./res.txt", "a"))
+            cimg = cv2.imread(fn,cv2.IMREAD_COLOR)
+            high,width,CH = cimg.shape
+            drawtangle(output_dict['detection_boxes'][0][0],cimg,high,width,(0,0,255))
+            drawtangle(output_dict['detection_boxes'][0][1],cimg,high,width,(0,0,255))
+            cv2.imwrite(fn.replace('-VF','-VF2'),cimg)
 
 def verifymbv2pb6():
     configs = config_util.get_configs_from_pipeline_file('./tfrec/fast_model_frozen/pipeline.config')
@@ -460,7 +510,6 @@ def convertmodeltopb():
                   as_text=True)
 
 
-
 def convertmodeltopb4():
   loaded = tf.saved_model.load('./tfrec/fast_model_frozen/saved_model')
   infer = loaded.signatures['serving_default']
@@ -490,7 +539,9 @@ def convertmodeltopb2():
                               input_saved_model_dir=input_saved_model_dir)
 
 
-convertmodeltopb2()
+verifymbv2pb9()
+
+#convertmodeltopb2()
 
 #verifymbv2pb4()
 
@@ -509,6 +560,17 @@ convertmodeltopb2()
 #writesiglefile('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\XYFILE\\F5X1XY.txt','./tfrec/train_dataset.tfrecord')
 #writesiglefile('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\XYFILE\\F5X1XY2.txt','./tfrec/eval_dataset2.tfrecord')
 
+# writesiglefile('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\XYFILE\\SIXXY.txt','./tfrec/train_dataset_six.tfrecord')
+# writesiglefile('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\XYFILE\\SIXXY1.txt','./tfrec/eval_dataset_six.tfrecord')
+
+# writesiglefile('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\XYFILE\\F2X1XXY.txt','./tfrec/train_dataset_f2x1.tfrecord')
+# writesiglefile('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\XYFILE\\F2X1XXY1.txt','./tfrec/eval_dataset_f2x1.tfrecord')
+
+# writesiglefile('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\XYFILE\\A10XY.txt','./tfrec/train_dataset_a10.tfrecord')
+# writesiglefile('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\XYFILE\\A10XY1.txt','./tfrec/eval_dataset_a10.tfrecord')
+
+# writesiglefile('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\XYFILE\\IIVI-XY.txt','./tfrec/train_dataset_iivi.tfrecord')
+# writesiglefile('\\\\wux-engsys01\\PlanningForCast\\VCSEL5\\XYFILE\\IIVI-XY1.txt','./tfrec/eval_dataset_iivi.tfrecord')
 
 #TF2.4
 
@@ -571,12 +633,3 @@ convertmodeltopb2()
 #       s: "NHWC"
 #     }
 #   }
-
-# I meet the same problem. 
-# At first , I use TF2.x mobilenet , I can detect object from image, but failed to export frozen model which can be used by OPENCV. 
-
-# Then, I tried TF1.x mobilenet, the customer trained model failed to detect object from image(waste me two weeks - train,convert,load, test).
-
-# Now, I come to TF2.x, PLAN A, convert to ONNX format and failed on load.  PLAN B, try Tensorflow.net , a funny thing is that this library even has no a function to load saved model.
-
-# I may need to give up tensorflow and turn to Pytorch to find some luck.
