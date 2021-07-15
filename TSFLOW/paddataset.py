@@ -4,6 +4,7 @@ import random
 import matplotlib.pyplot as plt
 import os
 from PIL import Image
+from PIL import ImageChops
 
 import tensorflow as tf
 import tensorflow_hub as hub
@@ -121,7 +122,7 @@ def drawtangle(box,cimg,high,width):
 def verifypad():
     model = tf.saved_model.load('./tfrec/orion_savedmodel/saved_model')
 
-    data_root = pathlib.Path('D:/PlanningForCast/condaenv/PAD2/shortcheck1')
+    data_root = pathlib.Path('D:/PlanningForCast/condaenv/PAD2/shortcheck2')
     all_image_paths = list(data_root.glob('*'))
     all_image_paths = [str(path) for path in all_image_paths]
     for fn in all_image_paths:
@@ -426,7 +427,7 @@ def findmarkpointbox(aimg,box,fn):
 def detectnewmark():
 	model = tf.saved_model.load('./tfrec/orion_savedmodel/saved_model')
 
-	data_root = pathlib.Path('D:/PlanningForCast/condaenv/PAD2/shortcheck1')
+	data_root = pathlib.Path('D:/PlanningForCast/condaenv/PAD2/shortcheck2')
 	all_image_paths = list(data_root.glob('*'))
 	all_image_paths = [str(path) for path in all_image_paths]
 	for fn in all_image_paths:
@@ -453,7 +454,85 @@ def detectnewmark():
 				cv2.imwrite(fn.replace('.jpg','_detect.jpg'),bimg)
 				cv2.imwrite(afterfn.replace('.jpg','_detect.jpg'),aimg)
 
-detectnewmark()
+
+def specialcase():
+
+	data_root = pathlib.Path('D:/PlanningForCast/condaenv/PAD2/shortcheck2')
+	all_image_paths = list(data_root.glob('*'))
+	all_image_paths = [str(path) for path in all_image_paths]
+	for fn in all_image_paths:
+		if '.jpg' in fn and 'before' in fn:
+			#print(fn)
+			afterfn = fn.replace('before','after')
+
+
+			if pathlib.Path(afterfn).exists():
+				bimg = cv2.imread(fn,cv2.IMREAD_GRAYSCALE)
+				bimg = cv2.resize(bimg,(1024,1024))
+
+				aimg = cv2.imread(afterfn,cv2.IMREAD_GRAYSCALE)
+				aimg = cv2.resize(aimg,(1024,1024))
+
+				zerolist = []
+				aftersub = aimg[200:300,500:600]
+				ablurred = cv2.GaussianBlur(aftersub,(3,3),0)
+				aretval,asrcthr = cv2.threshold(ablurred,100,255,cv2.THRESH_BINARY)
+
+				# asrcthr = copy.deepcopy(ablurred)
+				# asrcthr = cv2.Canny(ablurred,50,200,asrcthr,3,False)
+
+				zerolist.append(10000)
+
+				matchx = -100
+				matchy = -100
+
+				for ix in range(-20,20):
+					for iy in range(-20,20):
+						beforesub = bimg[200+iy:300+iy,500+ix:600+ix]
+						bblurred = cv2.GaussianBlur(beforesub,(3,3),0)
+						bretval,bsrcthr = cv2.threshold(bblurred,100,255,cv2.THRESH_BINARY)
+
+						# bsrcthr = copy.deepcopy(bblurred)
+						# bsrcthr = cv2.Canny(bblurred,50,200,bsrcthr,3,False)
+
+						xor = cv2.bitwise_xor(bsrcthr,asrcthr)
+						nonzero = cv2.countNonZero(xor)
+						
+						if nonzero <= np.min(zerolist):
+							zerolist.append(nonzero)
+							matchx = ix
+							matchy = iy
+						
+							#cv2.imwrite(afterfn.replace('.jpg','_xor.jpg'),xor)
+							#cv2.imwrite(afterfn.replace('.jpg','_aftersub.jpg'),asrcthr)
+							#cv2.imwrite(afterfn.replace('.jpg','_beforesub.jpg'),bsrcthr)
+
+				print(fn + '  matchx: '+ str(matchx) + '  matchy: '+str(matchy))
+				print('min nonzero:' +str(np.min(zerolist)))
+
+				aftersub = aimg[10:1000,10:1000]
+				beforesub = bimg[10+matchy:1000+matchy,10+matchx:1000+matchx]
+				
+				diff = ImageChops.difference(Image.fromarray(aftersub),Image.fromarray(beforesub))
+
+				diff = np.array(diff)
+				diff = diff[200:790,200:790]
+				thr = np.max(diff)
+				res = np.where(diff == thr)
+				if len(res[0]) > 0:
+					listOfIndices= list(zip(res[0], res[1]))
+					# xorret,diff = cv2.threshold(diff,thr-10,255,cv2.THRESH_BINARY)
+					h,w = listOfIndices[0]
+					h = h + 210
+					w = w + 210
+					aimg = cv2.imread(afterfn,cv2.IMREAD_COLOR)
+					cv2.rectangle(aimg,(w-3,h-3),(w+3,h+3),(0,0,255),2)
+					cv2.imwrite(afterfn.replace('.jpg','_lock.jpg'),aimg)
+
+
+specialcase()
+
+#detectnewmark()
 
 #convertimag2()
 
