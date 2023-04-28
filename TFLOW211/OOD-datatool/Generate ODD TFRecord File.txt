@@ -1,0 +1,11 @@
+1, use ood_data_tool convertimag convert image to the image size which you want to train
+2, use labelimg tool mark images to generate xml file 
+3, use ood_data_tool XML2CSV convert all xml file to CSV file
+4, manually modidy file CSV file, add ID column, for diffenct class name give differet ID from 1, modify the file name to whole path file name
+5, name the CSV file as txt file
+6, use ood_data_tool writesiglefile1 to get TFRecord file
+
+
+# python labelme2coco.py ./mydata ./myoutput --labels labels2.txt 
+
+# python create_coco_tf_record.py  --include_masks=True --image_dir=.\myoutput\  --object_annotations_file=./myoutput/annotations.json  --output_file_prefix=./mytraindata --num_shards=1
